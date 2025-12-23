@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title> The Love Ride 🐼🖤 </title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* =========================================
+           1. CORE ARCHITECTURE & DYNAMIC THEME
+           ========================================= */
+        :root {
+            --bg-dark: #05020a;
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --glass-bg: rgba(15, 15, 25, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            width: 100%;
+            height: 100dvh;
+            user-select: none;
+            position: fixed; /* Prevent elastic scrolling on iOS */
+        }
+
+        /* =========================================
+           2. HARDWARE-ACCELERATED LAYERS
+           ========================================= */
+        #video-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -5;
+            opacity: 0.35;
+            filter: blur(3px) saturate(0.8);
+            will-change: opacity;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #petal-canvas {
+            z-index: -1;
+        }
+
+        #visualizer-canvas {
+            z-index: -2;
+            opacity: 0.6;
+            bottom: 0;
+            height: 180px;
+            top: auto;
+        }
+
+        .ghost-trail {
+            position: fixed;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--neon-blue);
+            pointer-events: none;
+            z-index: 9999;
+            box-shadow: 0 0 15px var(--neon-blue);
+            will-change: transform, opacity;
+            top: 0;
+            left: 0;
+        }
+
+        .burst-emoji {
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+            font-size: 2.5rem;
+            will-change: transform, opacity;
+            top: 0;
+            left: 0;
+            animation: burstOut 1.4s cubic-bezier(0.15, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes burstOut {
+            0% {
+                transform: translate(var(--x), var(--y)) scale(0) rotate(0deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(1.4) rotate(var(--rf));
+                opacity: 0;
+            }
+        }
+
+        /* =========================================
+           3. LAYOUT & SCROLL ENGINE
+           ========================================= */
+        .container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100dvh;
+            width: 100vw;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        section.stage {
+            height: 100dvh;
+            width: 100%;
+            scroll-snap-align: start;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            transform: translate3d(0, 30px, 0);
+            transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1), transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+            section.stage.visible {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
+
+        .content-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 40px;
+            padding: 45px 35px;
+            max-width: 580px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.8), inset 0 0 30px rgba(255,255,255,0.02);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1, h2 {
+            margin-bottom: 20px;
+            color: #fff;
+            font-weight: 800;
+            text-shadow: 0 0 20px var(--neon-blue);
+            letter-spacing: -1px;
+        }
+
+        h1 {
+            font-size: clamp(2.2rem, 6vw, 3.8rem);
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 1rem;
+            line-height: 1.7;
+            opacity: 0.85;
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-pink));
+            color: #000;
+            border: none;
+            padding: 18px 40px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            border-radius: 60px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 10px 30px rgba(0, 243, 255, 0.3);
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin: 10px;
+            display: inline-block;
+        }
+
+            .btn:hover {
+                transform: scale(1.05);
+                box-shadow: 0 0 40px var(--neon-blue);
+            }
+
+            .btn:active {
+                transform: scale(0.95);
+            }
+
+        input.code-input {
+            background: rgba(0,0,0,0.5);
+            border: 2px solid var(--neon-blue);
+            color: #fff;
+            font-size: 2.2rem;
+            padding: 15px;
+            border-radius: 20px;
+            text-align: center;
+            width: 220px;
+            outline: none;
+            font-family: 'Share Tech Mono', monospace;
+            transition: 0.3s;
+        }
+
+            input.code-input:focus {
+                box-shadow: 0 0 25px var(--neon-blue);
+                border-color: #fff;
+            }
+
+        .coords-badge {
+            font-family: 'Share Tech Mono';
+            font-size: 0.8rem;
+            color: var(--neon-pink);
+            border: 1px dashed var(--neon-pink);
+            padding: 6px 15px;
+            display: inline-block;
+            background: rgba(255, 0, 255, 0.1);
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+
+        #chronos-display {
+            display: none;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            background: rgba(0,0,0,0.4);
+            padding: 25px;
+            border-radius: 25px;
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            margin-top: 25px;
+        }
+
+        .time-val {
+            color: var(--neon-blue);
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .time-label {
+            color: #888;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+        }
+
+        #prism-container {
+            width: 100%;
+            height: 350px;
+            margin: 20px auto;
+            perspective: 1200px;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #prism-wrap {
+            width: 160px;
+            height: 220px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.1s linear;
+        }
+
+        .prism-face {
+            position: absolute;
+            width: 130px;
+            height: 190px;
+            left: 50%;
+            top: 50%;
+            margin: -95px 0 0 -65px;
+            background: #000;
+            border: 2px solid var(--neon-blue);
+            box-shadow: inset 0 0 20px var(--neon-blue);
+            border-radius: 15px;
+            overflow: hidden;
+            backface-visibility: hidden;
+            transition: 0.4s ease;
+        }
+
+            .prism-face.active {
+                border-color: var(--neon-pink);
+                box-shadow: 0 0 35px var(--neon-pink);
+                transform: scale(1.05);
+            }
+
+            .prism-face img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                pointer-events: none;
+            }
+
+        .typewriter-box {
+            background: rgba(0,0,0,0.4);
+            border-left: 4px solid var(--neon-pink);
+            padding: 25px;
+            text-align: left;
+            min-height: 150px;
+            font-family: 'Share Tech Mono';
+            white-space: pre-wrap;
+            font-size: 1rem;
+            line-height: 1.6;
+            border-radius: 0 20px 20px 0;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: rgba(0,0,0,0.4);
+            border: 2px solid var(--neon-blue);
+            border-radius: 20px;
+            color: #fff;
+            padding: 20px;
+            font-family: inherit;
+            margin: 20px 0;
+            resize: none;
+            outline: none;
+            transition: 0.3s;
+        }
+
+            textarea:focus {
+                border-color: var(--neon-pink);
+                box-shadow: 0 0 20px var(--neon-pink);
+            }
+
+        #mood-emoji {
+            font-size: 4.5rem;
+            display: block;
+            margin-bottom: 15px;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #sync-bar-container {
+            width: 100%;
+            height: 12px;
+            background: #111;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 30px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #sync-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+            transition: 0.8s ease;
+        }
+
+        #rose-trigger {
+            font-size: 7rem;
+            cursor: pointer;
+            filter: drop-shadow(0 0 20px var(--neon-pink));
+            animation: float 3s ease-in-out infinite;
+            transition: 0.6s;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .video-box {
+            width: 100%;
+            aspect-ratio: 16/9;
+            display: none;
+            margin-top: 25px;
+            border-radius: 25px;
+            overflow: hidden;
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 50px var(--neon-blue);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #sky-canvas {
+            width: 100%;
+            height: 260px;
+            background: #020005;
+            border: 1px solid #333;
+            border-radius: 25px;
+            cursor: crosshair;
+            touch-action: none;
+            box-shadow: inset 0 0 30px rgba(0, 243, 255, 0.1);
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%,100% {
+                transform: translateX(0)
+            }
+
+            25% {
+                transform: translateX(-10px)
+            }
+
+            75% {
+                transform: translateX(10px)
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <video id="video-bg" autoplay muted loop playsinline>
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-stars-in-the-night-sky-loop-9051-large.mp4" type="video/mp4">
+    </video>
+
+    <canvas id="petal-canvas"></canvas>
+    <canvas id="visualizer-canvas"></canvas>
+
+    <audio id="bg-music" loop><source src="media/song.mp3" type="audio/mp3"></audio>
+    <audio id="sfx-blast"><source src="https://assets.mixkit.co/sfx/preview/mixkit-fireworks-explosion-1705.mp3" type="audio/mp3"></audio>
+
+    <div class="container" id="main-scroller">
+
+        <section class="stage visible" id="s1">
+            <div class="content-card">
+                <h1 class="glitch-text" data-text="THE LOVE RIDE">THE LOVE RIDE</h1>
+                <div class="coords-badge">ID: PANDA_ELITE_x5588 | DELHI_CR</div>
+
+                <p>Initialize temporal link by entering origin year:</p>
+                <input type="number" id="pin-input" class="code-input" placeholder="YEAR">
+
+                <div id="chronos-display">
+                    <div class="unit"><span id="c-y" class="time-val">00</span><span class="time-label">YRS</span></div>
+                    <div class="unit"><span id="c-d" class="time-val">000</span><span class="time-label">DAY</span></div>
+                    <div class="unit"><span id="c-h" class="time-val">00</span><span class="time-label">HR</span></div>
+                    <div class="unit"><span id="c-m" class="time-val">00</span><span class="time-label">MIN</span></div>
+                    <div class="unit"><span id="c-s" class="time-val">00</span><span class="time-label">SEC</span></div>
+                </div>
+                <br>
+                <button id="init-btn" class="btn" style="margin-top:20px">Initialize Link</button>
+            </div>
+        </section>
+
+        <section class="stage" id="s2">
+            <div class="content-card">
+                <h2 class="glitch-text" data-text="MEMORY CORE">MEMORY CORE</h2>
+                <p>Interact with the fragments of our history.</p>
+                <div id="prism-container"><div id="prism-wrap"></div></div>
+                <div id="status-caption" style="min-height:40px;">
+                    <p id="caption-text" style="color:var(--neon-blue); font-family: 'Share Tech Mono';">"Swipe to decrypt fragments"</p>
+                </div>
+                <input type="file" id="media-up" hidden multiple accept="image/*">
+                <button class="btn" onclick="document.getElementById('media-up').click()">Inject Data</button>
+            </div>
+        </section>
+
+        <section class="stage" id="s3">
+            <div class="content-card">
+                <h2 class="glitch-text" data-text="TRANSMISSION">TRANSMISSION</h2>
+                <p>Decoding secure packet from x5588...</p>
+                <div class="typewriter-box" id="msg-box">[ENCRYPTED] Awaiting clearance...</div>
+                <button id="dec-btn" class="btn" style="margin-top:25px">Decrypt Packet</button>
+            </div>
+        </section>
+
+        <section class="stage" id="s4">
+            <div class="content-card">
+                <span id="mood-emoji">🤨</span>
+                <h2 id="sync-title">SYNC STATUS</h2>
+                <p>Establishing emotional handshake...</p>
+                <div id="sync-bar-container"><div id="sync-bar-fill"></div></div>
+                <button id="sync-pos" class="btn">Grant Access (+25%)</button>
+                <button id="sync-neg" class="btn" style="background:#222; color:#fff;">Delay (-10%)</button>
+            </div>
+        </section>
+
+        <section class="stage" id="s5">
+            <div class="content-card">
+                <h2 id="ign-title">IGNITION</h2>
+                <p>One touch to unlock the universe.</p>
+                <div id="rose-trigger">🌹</div>
+                <div class="video-box" id="vid-container">
+                    <video id="final-video" controls playsinline><source src="media/video.mp4" type="video/mp4"></video>
+                </div>
+            </div>
+        </section>
+
+        <section class="stage" id="s6">
+            <div class="content-card">
+                <h2 style="color:var(--neon-pink)">TELEPATHY</h2>
+                <p>Transmit a direct message to your love.</p>
+                <textarea id="wa-text" placeholder="Type your transmission..."></textarea>
+                <button id="send-wa" class="btn">Transmit via WhatsApp</button>
+                <p id="wa-status" style="font-family:'Share Tech Mono'; font-size:0.7rem; margin-top:10px;"></p>
+            </div>
+        </section>
+
+        <section class="stage" id="s7">
+            <div class="content-card">
+                <h2>STAR_MAP</h2>
+                <p>Map the coordinates of our future.</p>
+                <canvas id="sky-canvas"></canvas>
+                <p id="star-count" style="margin-top:15px; font-family:'Share Tech Mono';">Captured Points: 0</p>
+                <button class="btn" style="margin-top:20px" onclick="location.reload()">Reboot System</button>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        const $ = s => document.querySelector(s);
+        const $$ = s => document.querySelectorAll(s);
+
+        const CONFIG = {
+            targetYear: '2018',
+            startDate: new Date('2018-06-11T21:30:45'),
+            quotes: ["A collision of worlds.", "Your glitch is my favorite feature.", "Syncing heartbeats since June.", "Architecture built on trust.", "Permanent data in a temporary world.", "The elite x5588 connection.", "No bugs found in this love.", "Fragment of a perfect day.", "Data stream: Infinite.", "Encryption key: You."]
+        };
+
+        const STATE = {
+            imgs: JSON.parse(localStorage.getItem('x5588_mem')) || [],
+            rotY: 0, rotX: -8, dragging: false, startX: 0, startY: 0,
+            sync: 0, stars: 0,
+            audioCtx: null, analyser: null
+        };
+
+        const EMOJI_POOL = ['💖', '🐼', '🌹', '✨', '🤍', '💍', '🦋', '🧸', '💌', '🌸', '💫', '🧁', '💎', '🔥', '🧿', '🫂', '🎈', '🎀'];
+
+        /* --- 1. PERFORMANCE POOLED PARTICLES --- */
+        function triggerBurst(x, y, count) {
+            for (let i = 0; i < count; i++) {
+                const el = document.createElement('div');
+                el.className = 'burst-emoji';
+                el.innerText = EMOJI_POOL[Math.floor(Math.random() * EMOJI_POOL.length)];
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 100 + Math.random() * 180;
+
+                el.style.setProperty('--x', `${x}px`);
+                el.style.setProperty('--y', `${y}px`);
+                el.style.setProperty('--tx', `${x + Math.cos(angle) * dist}px`);
+                el.style.setProperty('--ty', `${y + Math.sin(angle) * dist}px`);
+                el.style.setProperty('--rf', `${Math.random() * 360}deg`);
+
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 1400);
+            }
+        }
+
+        /* --- 2. AUDIO HANDSHAKE & VISUALIZER --- */
+        function initAudio() {
+            if (STATE.audioCtx) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                STATE.audioCtx = new AudioContext();
+                const music = $('#bg-music');
+                const source = STATE.audioCtx.createMediaElementSource(music);
+                STATE.analyser = STATE.audioCtx.createAnalyser();
+                source.connect(STATE.analyser);
+                STATE.analyser.connect(STATE.audioCtx.destination);
+                STATE.analyser.fftSize = 128;
+
+                const vCvs = $('#visualizer-canvas');
+                const vCtx = vCvs.getContext('2d');
+                const data = new Uint8Array(STATE.analyser.frequencyBinCount);
+
+                function render() {
+                    requestAnimationFrame(render);
+                    STATE.analyser.getByteFrequencyData(data);
+                    vCvs.width = window.innerWidth; vCvs.height = 180;
+                    vCtx.clearRect(0, 0, vCvs.width, vCvs.height);
+                    const barW = (vCvs.width / data.length) * 2.5;
+                    let x = 0;
+                    for (let i = 0; i < data.length; i++) {
+                        const h = data[i] / 1.5;
+                        vCtx.fillStyle = `rgba(0, 243, 255, ${h / 220})`;
+                        vCtx.fillRect(x, vCvs.height - h, barW, h);
+                        x += barW + 1;
+                    }
+                }
+                render();
+            } catch (e) { console.error("Audio block:", e); }
+        }
+
+        /* --- 3. PRISM & INTERACTION ENGINE --- */
+        function buildPrism() {
+            const wrap = $('#prism-wrap');
+            wrap.innerHTML = '';
+            const count = 10;
+            const radius = 180;
+
+            for (let i = 0; i < count; i++) {
+                const face = document.createElement('div');
+                face.className = 'prism-face';
+                face.style.transform = `rotateY(${i * 36}deg) translateZ(${radius}px)`;
+
+                const img = document.createElement('img');
+                img.src = STATE.imgs[i] || `https://picsum.photos/300/400?random=${i + 20}`;
+                img.loading = "lazy";
+
+                face.appendChild(img);
+                wrap.appendChild(face);
+
+                face.onclick = (e) => {
+                    e.stopPropagation();
+                    $$('.prism-face').forEach(f => f.classList.remove('active'));
+                    face.classList.add('active');
+                    $('#caption-text').innerText = `DATA: "${CONFIG.quotes[i]}"`;
+                    if (navigator.vibrate) navigator.vibrate(25);
+                };
+            }
+        }
+
+        $('#media-up').onchange = (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach((file, idx) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    STATE.imgs[idx] = ev.target.result;
+                    if (idx === files.length - 1) {
+                        localStorage.setItem('x5588_mem', JSON.stringify(STATE.imgs));
+                        buildPrism();
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        const pZone = $('#prism-container');
+        const pWrap = $('#prism-wrap');
+
+        const onDragStart = (e) => {
+            STATE.dragging = true;
+            STATE.startX = e.touches ? e.touches[0].clientX : e.clientX;
+            STATE.startY = e.touches ? e.touches[0].clientY : e.clientY;
+        };
+
+        const onDragMove = (e) => {
+            if (!STATE.dragging) return;
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+
+            STATE.rotY += (x - STATE.startX) * 0.45;
+            STATE.rotX = Math.max(-30, Math.min(30, STATE.rotX - (y - STATE.startY) * 0.45));
+
+            pWrap.style.transform = `rotateX(${STATE.rotX}deg) rotateY(${STATE.rotY}deg)`;
+            STATE.startX = x; STATE.startY = y;
+        };
+
+        pZone.addEventListener('mousedown', onDragStart);
+        pZone.addEventListener('touchstart', onDragStart, { passive: true });
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('mouseup', () => STATE.dragging = false);
+        window.addEventListener('touchend', () => STATE.dragging = false);
+
+        /* --- 4. CORE SYSTEMS LOGIC --- */
+        function updateChronos() {
+            const diff = new Date() - CONFIG.startDate;
+            const yrs = Math.floor(diff / 31536000000);
+            const days = Math.floor((diff / 86400000) % 365);
+            const hrs = Math.floor((diff / 3600000) % 24);
+            const mins = Math.floor((diff / 60000) % 60);
+            const secs = Math.floor((diff / 1000) % 60);
+
+            $('#c-y').innerText = yrs.toString().padStart(2, '0');
+            $('#c-d').innerText = days.toString().padStart(3, '0');
+            $('#c-h').innerText = hrs.toString().padStart(2, '0');
+            $('#c-m').innerText = mins.toString().padStart(2, '0');
+            $('#c-s').innerText = secs.toString().padStart(2, '0');
+        }
+        setInterval(updateChronos, 1000);
+
+        $('#init-btn').onclick = () => {
+            const pin = $('#pin-input');
+            if (pin.value === CONFIG.targetYear) {
+                $('#chronos-display').style.display = 'grid';
+                $('#init-btn').style.display = 'none';
+                pin.style.display = 'none';
+                const audio = $('#bg-music');
+                audio.play().then(initAudio).catch(() => {
+                    // Fallback for browsers requiring more explicit gesture
+                    document.body.addEventListener('click', initAudio, { once: true });
+                });
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                setTimeout(() => $('#main-scroller').scrollTo({ top: window.innerHeight, behavior: 'smooth' }), 1800);
+            } else {
+                pin.classList.add('shake');
+                setTimeout(() => pin.classList.remove('shake'), 400);
+                if (navigator.vibrate) navigator.vibrate(300);
+            }
+        };
+
+        $('#dec-btn').onclick = function () {
+            const text = "My Dearest Panda 🐼🖤,\n\nYou are the most stable architecture I've ever known. Since 2018, every line of my life's code has been written for you. Through the glitches and the updates, our connection remains encrypted and unbreakable. I love you, Panda🐼.";
+            this.style.display = 'none';
+            const box = $('#msg-box');
+            box.innerText = "";
+            let i = 0;
+            const timer = setInterval(() => {
+                box.innerText += text[i];
+                i++;
+                if (i >= text.length) clearInterval(timer);
+            }, 45);
+        };
+
+        function updateSync(val) {
+            STATE.sync = Math.max(0, Math.min(100, STATE.sync + val));
+            $('#sync-bar-fill').style.width = STATE.sync + '%';
+            const moods = ["🤨", "😒", "😐", "😊", "🥰"];
+            $('#mood-emoji').innerText = moods[Math.floor(STATE.sync / 20.1)] || "🥰";
+            if (STATE.sync >= 100) {
+                $('#sync-title').innerText = "LINK_OPTIMIZED";
+                setTimeout(() => $('#main-scroller').scrollTo({ top: window.innerHeight * 4, behavior: 'smooth' }), 1200);
+            }
+        }
+        $('#sync-pos').onclick = () => updateSync(25);
+        $('#sync-neg').onclick = () => updateSync(-10);
+
+        $('#rose-trigger').onclick = function () {
+            $('#sfx-blast').play().catch(() => { });
+            triggerBurst(window.innerWidth / 2, window.innerHeight / 2, 60);
+            if (navigator.vibrate) navigator.vibrate([50, 30, 1000]);
+            this.style.transform = 'scale(0) rotate(720deg)';
+            setTimeout(() => {
+                this.style.display = 'none';
+                $('#vid-container').style.display = 'block';
+                $('#final-video').play();
+                $('#bg-music').pause();
+            }, 800);
+        };
+
+        $('#send-wa').onclick = () => {
+            const text = $('#wa-text').value;
+            if (!text) return;
+            const url = `https://wa.me/?text=${encodeURIComponent("💌 [x5588 Transmission]: " + text)}`;
+            $('#wa-status').innerText = "Encrypting transmission...";
+            setTimeout(() => {
+                window.open(url, '_blank');
+                $('#wa-status').innerText = "Packet Dispatched.";
+            }, 1000);
+        };
+
+        /* --- 5. VISUAL EFFECT ENGINES --- */
+        function initPetals() {
+            const cvs = $('#petal-canvas');
+            const ctx = cvs.getContext('2d');
+            let pts = Array(45).fill().map(() => ({
+                x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+                v: Math.random() * 1.5 + 0.5, s: Math.random() * 2.5 + 1
+            }));
+
+            function draw() {
+                cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+                ctx.clearRect(0, 0, cvs.width, cvs.height);
+                ctx.fillStyle = "rgba(255, 192, 203, 0.45)";
+                pts.forEach(p => {
+                    p.y += p.v; p.x += Math.sin(p.y / 50);
+                    if (p.y > cvs.height) p.y = -10;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill();
+                });
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        const sky = $('#sky-canvas');
+        const sCtx = sky.getContext('2d');
+        let lastPt = null;
+
+        function addStar(x, y) {
+            STATE.stars++;
+            $('#star-count').innerText = "Captured Points: " + STATE.stars;
+            sCtx.fillStyle = "#fff";
+            sCtx.shadowBlur = 10; sCtx.shadowColor = "#fff";
+            sCtx.beginPath(); sCtx.arc(x, y, 2.5, 0, Math.PI * 2); sCtx.fill();
+            if (lastPt) {
+                sCtx.strokeStyle = "rgba(0, 243, 255, 0.4)";
+                sCtx.lineWidth = 1.5;
+                sCtx.beginPath(); sCtx.moveTo(lastPt.x, lastPt.y);
+                sCtx.lineTo(x, y); sCtx.stroke();
+            }
+            lastPt = { x, y };
+        }
+        sky.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const r = sky.getBoundingClientRect();
+            addStar(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
+        });
+        sky.addEventListener('mousedown', e => {
+            const r = sky.getBoundingClientRect();
+            addStar(e.clientX - r.left, e.clientY - r.top);
+        });
+
+        function glitchText(el) {
+            if (!el) return;
+            const txt = el.getAttribute('data-text') || el.innerText;
+            const chars = '!@#$%^&*()_+X5588';
+            let iter = 0;
+            const t = setInterval(() => {
+                el.innerText = txt.split('').map((c, i) => i < iter ? txt[i] : chars[Math.floor(Math.random() * chars.length)]).join('');
+                if (iter >= txt.length) clearInterval(t);
+                iter += 1 / 3;
+            }, 35);
+        }
+
+        /* --- 6. OBSERVER INITIALIZATION --- */
+        const obs = new IntersectionObserver(ents => {
+            ents.forEach(e => {
+                if (e.isIntersecting) {
+                    e.target.classList.add('visible');
+                    const h = e.target.querySelector('.glitch-text');
+                    if (h) glitchText(h);
+                }
+            });
+        }, { threshold: 0.3 });
+
+        window.onload = () => {
+            buildPrism();
+            initPetals();
+            sky.width = sky.offsetWidth;
+            sky.height = sky.offsetHeight;
+            $$('.stage').forEach(s => obs.observe(s));
+            glitchText($('.glitch-text'));
+        };
+
+        // Hardware Handshake - Mouse Ghost Trail
+        document.addEventListener('mousemove', e => {
+            const trail = document.createElement('div');
+            trail.className = 'ghost-trail';
+            trail.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+            document.body.appendChild(trail);
+            setTimeout(() => trail.remove(), 600);
+        });
+    </script>
+</body>
+</html>
